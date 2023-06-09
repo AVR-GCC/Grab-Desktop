@@ -6,6 +6,17 @@ import re
 import requests
 import time
 
+from huaweiHG8145V5Router import HuaweiHG8145V5Router
+
+router = None
+usernameEntry = None
+passwordEntry = None
+ssnEntry = None
+ip = ''
+username = ''
+password = ''
+ssn = ''
+
 def get_gateway_ip():
     gateway_ip = None
 
@@ -21,8 +32,6 @@ def get_gateway_ip():
     except subprocess.CalledProcessError:
         print("Failed to retrieve the gateway IP.")
         return None
-        
-    print("output", output)
 
     # Extract the gateway IP address from the output
     if sys.platform.startswith('win'):
@@ -56,50 +65,67 @@ def get_gateway_ip():
                 
     return gateway_ip
 
-customtkinter.set_appearance_mode("dark")
-customtkinter.set_default_color_theme("dark-blue")
-
-root = customtkinter.CTk()
-
-root.geometry("500x350")
-
-frame = customtkinter.CTkFrame(master=root)
-frame.pack(pady=20, padx=60, fill="both", expand=True)
-
-label = customtkinter.CTkLabel(master=frame, text="Grab")
-
-label.pack(pady=12, padx=10)
-
-usernameEntry = customtkinter.CTkEntry(master=frame, placeholder_text="Username")
-usernameEntry.pack(pady=12, padx=10)
-
-passwordEntry = customtkinter.CTkEntry(master=frame, placeholder_text="Password")
-passwordEntry.pack(pady=12, padx=10)
-
-ssnEntry = customtkinter.CTkEntry(master=frame, placeholder_text="SSN")
-ssnEntry.pack(pady=12, padx=10)
-
-# subprocess.run(['xclip', '-selection', 'clipboard'], input=curlCommand.encode(), check=True)
-
 def click():
-    print("Clicked!")
-    # print(usernameEntry.get())
-    # print(dir(netmiko))
-    gateway_ip = get_gateway_ip();
-    base_url = "https://" + gateway_ip;
-    rand_count_url = base_url + "/asp/GetRandCount.asp"
-    login_url = base_url + "/login.cgi?&CheckCodeErrFile=login.asp"
-    username = "root"
-    password = "ysceXhP2"
-    ssn = "48575443471AE7AB"
-    print(gateway_ip)
+    global usernameEntry
+    global passwordEntry
+    global ssnEntry
+    global router
+    global username
+    global password
+    global ssn
+    new_ip = get_gateway_ip();
+    # new_username = usernameEntry.get()
+    new_username = "root"
+    # new_password = passwordEntry.get()
+    new_password = "ysceXhP2"
+    # new_ssn = ssnEntry.get()
+    new_ssn = "48575443471AE7AB"
+    if (new_ip != ip or new_username != username or new_password != password or new_ssn != ssn):
+        base_url = "https://" + new_ip;
+        print("Connecting to router on ip: " + new_ip)
+        print("With username: " + new_username + " password: " + new_password + " ssn: " + new_ssn)
+        username = new_username
+        password = new_password
+        ssn = new_ssn
+        router = HuaweiHG8145V5Router(new_ip, new_username, new_password, new_ssn)
+        devices = router.get_devices()
+        print(devices)
+        
+def start_ui():
+    global usernameEntry
+    global passwordEntry
+    global ssnEntry
+    customtkinter.set_appearance_mode("dark")
+    customtkinter.set_default_color_theme("dark-blue")
     
-   
-button = customtkinter.CTkButton(master=frame, text="Host", command=click)
+    root = customtkinter.CTk()
+    
+    root.geometry("500x350")
+    
+    frame = customtkinter.CTkFrame(master=root)
+    frame.pack(pady=20, padx=60, fill="both", expand=True)
+    
+    label = customtkinter.CTkLabel(master=frame, text="Grab")
+    
+    label.pack(pady=12, padx=10)
+    
+    usernameEntry = customtkinter.CTkEntry(master=frame, placeholder_text="Username")
+    usernameEntry.pack(pady=12, padx=10)
+    
+    passwordEntry = customtkinter.CTkEntry(master=frame, placeholder_text="Password")
+    passwordEntry.pack(pady=12, padx=10)
+    
+    ssnEntry = customtkinter.CTkEntry(master=frame, placeholder_text="SSN")
+    ssnEntry.pack(pady=12, padx=10)
+    
+    # subprocess.run(['xclip', '-selection', 'clipboard'], input=curlCommand.encode(), check=True)
+    
+    button = customtkinter.CTkButton(master=frame, text="Host", command=click)
+    
+    button.pack(pady=12, padx=10)
+    
+    root.mainloop()
 
-button.pack(pady=12, padx=10)
-
-root.mainloop()
-
+start_ui()
 print("Hello werrree")
 
