@@ -87,9 +87,12 @@ def click():
         username = new_username
         password = new_password
         ssn = new_ssn
-        router = HuaweiHG8145V5Router(new_ip, new_username, new_password, new_ssn)
-        devices = router.get_devices()
-        print(devices)
+        try:
+            router = HuaweiHG8145V5Router(new_ip, new_username, new_password, new_ssn)
+            devices = router.get_devices()
+            print(devices)
+        except:
+            print("Connection to router failed... Please review the inputed information")
         
 def start_ui():
     global usernameEntry
