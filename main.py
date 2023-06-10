@@ -5,12 +5,15 @@ import re
 import requests
 import time
 import socket
+import threading
 
 from zeroconf import Zeroconf, ServiceInfo
 import customtkinter
 
 from huaweiHG8145V5Router import HuaweiHG8145V5Router
 
+running = None
+client_thread = None
 zeroconf = None
 nsd_info = None
 router = None
@@ -105,7 +108,51 @@ def publish_nsd():
     print("Registering for NSD")
     zeroconf.register_service(nsd_info)
     print("Registered for NSD")
+
+def establish_socket():
+    global running
+    running = True
+    serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
+    host = get_local_ip()
+    
+    print("Socket hostname: ", host)    
+    
+    port = 6146                         
+    
+    serversocket.bind((host, port))
+    
+    print("Binded")
+    
+    serversocket.listen(5)
+    serversocket.settimeout(5)
+    
+    print("Listening")
+    
+    while running:
+        try:
+            # Establish a connection with the client.
+            clientsocket, addr = serversocket.accept()
+            print("Got a connection from %s" % str(addr))
+            while running:
+            
+                data = clientsocket.recv(1024)
+                decoded = data.decode('utf-8')
+                
+                number = int(decoded)
+                
+                incremented = number + 1
+            
+                msg = str(incremented)+ "\r\n"
+                clientsocket.send(msg.encode('ascii'))
+        
+            clientsocket.close()
+        except socket.timeout:
+            print("...")
+            pass
+        except:
+            break
+
 def connect_router():
     global usernameEntry
     global passwordEntry
@@ -137,7 +184,10 @@ def connect_router():
 
 
 def click():
+    global client_thread
     publish_nsd()
+    client_thread = threading.Thread(target=establish_socket)
+    client_thread.start()
     # connect_router()
 
 def start_ui():
@@ -146,6 +196,8 @@ def start_ui():
     global usernameEntry
     global passwordEntry
     global ssnEntry
+    global client_thread
+    global running
     customtkinter.set_appearance_mode("dark")
     customtkinter.set_default_color_theme("dark-blue")
     
@@ -180,6 +232,10 @@ def start_ui():
     if (zeroconf != None):
         zeroconf.unregister_service(nsd_info)
         zeroconf.close()
+
+    if (client_thread):
+        running = False
+        client_thread.join()
 
 if __name__ == "__main__":
     start_ui()
