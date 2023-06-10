@@ -181,6 +181,7 @@ def start_ui():
         zeroconf.unregister_service(nsd_info)
         zeroconf.close()
 
-start_ui()
-print("Hello werrree")
+if __name__ == "__main__":
+    start_ui()
+    print("Hello werrree")
 

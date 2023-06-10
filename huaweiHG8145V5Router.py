@@ -149,9 +149,10 @@ class HuaweiHG8145V5Router:
     print("Closing router.")
     self.driver.close()
 
-# initialize("192.168.100.1", "root", "ysceXhP2", "48575443471AE7AB")
-# print("Finished initialization")
-# get_devices()
-# unkick_device(["0c:7a:15:77:1c:b7"])
-# time.sleep(5)
-# close()
+# if __name__ == "__main__":
+#   initialize("192.168.100.1", "root", "ysceXhP2", "48575443471AE7AB")
+#   print("Finished initialization")
+#   get_devices()
+#   unkick_device(["0c:7a:15:77:1c:b7"])
+#   time.sleep(5)
+#   close()
