@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-import customtkinter
 import subprocess
 import sys
 import re
 import requests
 import time
+import socket
+
+from zeroconf import Zeroconf, ServiceInfo
+import customtkinter
 
 from huaweiHG8145V5Router import HuaweiHG8145V5Router
 
+zeroconf = None
+nsd_info = None
 router = None
 usernameEntry = None
 passwordEntry = None
@@ -16,6 +21,18 @@ ip = ''
 username = ''
 password = ''
 ssn = ''
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 def get_gateway_ip():
     gateway_ip = None
@@ -65,7 +82,31 @@ def get_gateway_ip():
                 
     return gateway_ip
 
-def click():
+def publish_nsd():
+    global zeroconf
+    global nsd_info
+    local_ip_address = get_local_ip()
+    
+    if (zeroconf == None):
+        zeroconf = Zeroconf()
+    
+    if (nsd_info == None):
+        service_type = "_http._tcp.local."
+        service_name = "Grab Provider 3._http._tcp.local."
+        service_port = 6146
+        
+        nsd_info = ServiceInfo(
+            service_type,
+            service_name,
+            addresses=[socket.inet_aton(local_ip_address)],
+            port=service_port,
+            properties={'path': '/~paulsm/'},
+        )
+    print("Registering for NSD")
+    zeroconf.register_service(nsd_info)
+    print("Registered for NSD")
+    
+def connect_router():
     global usernameEntry
     global passwordEntry
     global ssnEntry
@@ -93,8 +134,15 @@ def click():
             print(devices)
         except:
             print("Connection to router failed... Please review the inputed information")
-        
+
+
+def click():
+    publish_nsd()
+    # connect_router()
+
 def start_ui():
+    global zeroconf
+    global nsd_info
     global usernameEntry
     global passwordEntry
     global ssnEntry
@@ -128,6 +176,10 @@ def start_ui():
     button.pack(pady=12, padx=10)
     
     root.mainloop()
+    
+    if (zeroconf != None):
+        zeroconf.unregister_service(nsd_info)
+        zeroconf.close()
 
 start_ui()
 print("Hello werrree")
