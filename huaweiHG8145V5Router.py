@@ -11,6 +11,7 @@ class HuaweiHG8145V5Router:
   def __init__(self, ip, username, password, ssn):  
     self.tabs = []
     self.devices = []
+    self.devices_list_open = False
     options = Options()
     options.set_preference('acceptInsecureCerts', True)
     options.add_argument('--headless')
@@ -42,13 +43,12 @@ class HuaweiHG8145V5Router:
   
   def go_to_main(self):
     if (self.location != "main"):
-      print("Moving to main page")
       self.tabs[0].click()
       location = 'main'
       
   def go_to_advance(self):
+    self.devices_list_open = False
     if (self.location != "advance"):
-      print("Moving to advanced page")
       self.tabs[3].click()
       self.location = "advance"
   
@@ -69,10 +69,15 @@ class HuaweiHG8145V5Router:
   def get_devices(self):
     print("Getting devices")
     self.go_to_main()
-    self.go_to_frame("menuIframe")
-    devicesIcon = self.wait.until(EC.element_to_be_clickable((By.ID, "wifidevIcon")))
-    devicesIcon.click()
-    self.go_to_frame("ContectdevmngtPageSrc")
+    if (self.devices_list_open): 
+      self.go_to_frame("ContectdevmngtPageSrc")
+      refreshButton = self.wait.until(EC.element_to_be_clickable((By.ID, "refresh")))
+      refreshButton.click()
+    else:
+      self.go_to_frame("menuIframe")
+      devicesIcon = self.wait.until(EC.element_to_be_clickable((By.ID, "wifidevIcon")))
+      devicesIcon.click()
+    self.devices_list_open = True
     self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "DevTableList")))
   
     # names
@@ -99,6 +104,7 @@ class HuaweiHG8145V5Router:
         })
   
     self.driver.switch_to.default_content()
+    print("Devices: " + str(devices))
     return devices
     
   def to_mac_filtering(self):
@@ -109,10 +115,11 @@ class HuaweiHG8145V5Router:
     wifi_mac_filtering_button.click()
     self.go_to_frame("menuIframe")
     enable_filtering_checkbox = self.wait.until(EC.element_to_be_clickable((By.ID, "EnableMacFilter")))
+    return enable_filtering_checkbox
   
-  def kick_device(device):
-    print("Kicking device " + device['name'])
-    self.to_mac_filtering()
+  def kick_device(self, device):
+    print("Kicking device " + str(device))
+    enable_filtering_checkbox = self.to_mac_filtering()
     if(not enable_filtering_checkbox.is_selected()):
       enable_filtering_checkbox.click()
     new_button = self.wait.until(EC.element_to_be_clickable((By.ID, "Newbutton")))
@@ -126,10 +133,10 @@ class HuaweiHG8145V5Router:
     
     self.driver.execute_script("SubmitEx();")
     self.driver.switch_to.default_content()
-    print("Device kicked")
+    print("Device kicked.")
     
   def unkick_devices(self, macs):
-    print("Unkicking devices " + macs)
+    print("Unkicking devices " + str(macs))
     self.to_mac_filtering()
     macCells = self.driver.find_elements(by=By.XPATH, value="//*[contains(@id, 'WMacfilterConfigList')]");
     for cell in macCells:
@@ -143,16 +150,21 @@ class HuaweiHG8145V5Router:
     alert = self.driver.switch_to.alert
     alert.accept()
     self.driver.switch_to.default_content()
-    print("Device unkicked")
+    print("Devices unkicked.")
   
   def __del__(self):
     print("Closing router.")
     self.driver.close()
 
-# if __name__ == "__main__":
-#   initialize("192.168.100.1", "root", "ysceXhP2", "48575443471AE7AB")
-#   print("Finished initialization")
-#   get_devices()
-#   unkick_device(["0c:7a:15:77:1c:b7"])
-#   time.sleep(5)
-#   close()
+if __name__ == "__main__":
+  new_ip = '192.168.100.1'
+  new_username = "root"
+  new_password = "ysceXhP2"
+  new_ssn = "48575443471AE7AB"
+  router = HuaweiHG8145V5Router(new_ip, new_username, new_password, new_ssn)
+  devices = router.get_devices()
+  print(devices)
+  time.sleep(10)
+  # unkick_device(["0c:7a:15:77:1c:b7"])
+  # time.sleep(5)
+  # close()

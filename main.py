@@ -6,6 +6,7 @@ import requests
 import time
 import socket
 import threading
+import pdb
 
 from zeroconf import Zeroconf, ServiceInfo
 import customtkinter
@@ -13,10 +14,13 @@ import customtkinter
 from huaweiHG8145V5Router import HuaweiHG8145V5Router
 
 running = None
+running_current = None
 client_thread = None
+terminate_client_thread = None
 zeroconf = None
 nsd_info = None
 router = None
+devices = []
 usernameEntry = None
 passwordEntry = None
 ssnEntry = None
@@ -24,6 +28,7 @@ ip = ''
 username = ''
 password = ''
 ssn = ''
+last_number = 0
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -109,8 +114,42 @@ def publish_nsd():
     zeroconf.register_service(nsd_info)
     print("Registered for NSD")
 
+def find_device_by_ip(devices, ip):
+    if (len(devices) == 0):
+        return None
+    for device in devices:
+        if (device['ip'] == ip):
+            return device
+    return None
+
+def return_device_after_time(timeout, device):
+    global router
+    time.sleep(timeout)
+    router.unkick_devices([device['mac']])
+
+def terminate_client(addr):
+    global router
+    global devices
+    global last_number
+    last_number = 0
+    print("terminating " + addr)
+    device = find_device_by_ip(devices, addr)
+    if (device == None):
+        devices = router.get_devices()
+        device = find_device_by_ip(devices, addr)
+    if (device == None):
+        return
+    router.kick_device(device)
+    unkick_thread = threading.Thread(target=return_device_after_time, args=[20, device])
+    unkick_thread.start()
+    
+
 def establish_socket():
     global running
+    global running_current
+    global terminate_client_thread
+    find_client_timeout = 3
+    get_transaction_timeout = 5
     running = True
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
@@ -125,33 +164,52 @@ def establish_socket():
     print("Binded")
     
     serversocket.listen(5)
-    serversocket.settimeout(5)
     
     print("Listening")
     
     while running:
         try:
-            # Establish a connection with the client.
+            serversocket.settimeout(find_client_timeout)
             clientsocket, addr = serversocket.accept()
             print("Got a connection from %s" % str(addr))
-            while running:
-            
-                data = clientsocket.recv(1024)
-                decoded = data.decode('utf-8')
-                
-                number = int(decoded)
-                
-                incremented = number + 1
-            
-                msg = str(incremented)+ "\r\n"
-                clientsocket.send(msg.encode('ascii'))
-        
+
+            clientsocket.settimeout(get_transaction_timeout)
+            running_current = True
+            while running_current:
+                try:
+                    data = clientsocket.recv(1024)
+                    decoded = data.decode('utf-8')
+                    print("recv " + decoded)
+                    # pdb.set_trace()
+                    if (not confirm_transaction(decoded)):
+                        print("transaction failed " + addr[0])
+                        terminate_client(addr[0])
+                        running_current = False
+                except socket.timeout:
+                    print("timeout!")
+                    terminate_client(addr[0])
+                    running_current = False
+                # msg = str(incremented)+ "\r\n"
+                # clientsocket.send(msg.encode('ascii'))
+
             clientsocket.close()
         except socket.timeout:
             print("...")
             pass
         except:
             break
+
+def confirm_transaction(tran):
+    global last_number
+    stripped = tran.strip()
+    try:
+        number = int(stripped)
+        is_valid = last_number + 1 == number
+        last_number = number
+        return is_valid
+    except Exception as e:
+        return False
+    
 
 def connect_router():
     global usernameEntry
@@ -182,13 +240,12 @@ def connect_router():
         except:
             print("Connection to router failed... Please review the inputed information")
 
-
 def click():
     global client_thread
+    connect_router()
     publish_nsd()
     client_thread = threading.Thread(target=establish_socket)
     client_thread.start()
-    # connect_router()
 
 def start_ui():
     global zeroconf
